@@ -37,7 +37,9 @@ class Region {
         this.scrollSpeed = params.scrollSpeed || 1;
         this.scrollThreshold = params.scrollThreshold || 10;
 
-        this.bindInOut();
+        ///AIRFIX SPECIFIC CODE START
+        this.bindInOutAirFix();
+        //this.bindInOut();
         this.render();
         this.wavesurfer.on('zoom', this._onRedraw);
         this.wavesurfer.on('redraw', this._onRedraw);
@@ -220,6 +222,67 @@ class Region {
             this.element.title = this.formatTime(this.start, this.end);
         }
     }
+
+    ///AIRFIX SPECIFIC CODE START
+    /* Bind audio events. */
+    bindInOutAirFix() {
+        this.firedIn = false;
+        this.firedOut = false;
+        this.isLooping = false;
+
+        const seekToStart = () => {
+            this.wavesurfer.seek(this.start);
+        };
+
+        const onProcess = time => {
+            if (
+                !this.firedOut &&
+                this.firedIn &&
+                (this.start >= Math.round(time * 100) / 100 ||
+                    this.end <= Math.round(time * 100) / 100)
+            ) {
+                this.firedOut = true;
+                this.firedIn = false;
+                this.fireEvent('out');
+                this.wavesurfer.fireEvent('region-out', this);
+            }
+            if (!this.firedIn && this.start <= time && this.end > time) {
+                this.firedIn = true;
+                this.firedOut = false;
+
+                this.once('out', seekToStart);
+
+                this.fireEvent('in');
+                this.wavesurfer.fireEvent('region-in', this);
+            }
+        };
+
+        const onSeek = time => {
+            if (
+                this.start >= Math.round(time * 100) / 100 ||
+                this.end <= Math.round(time * 100) / 100
+            ) {
+                //when seeking outside of the region. stop looping and unsubscribe to 'out' se we dont loop
+                this.un('out', seekToStart);
+            }
+        };
+
+        this.wavesurfer.backend.on('audioprocess', onProcess);
+        this.wavesurfer.backend.on('seek', onSeek);
+
+        this.on('remove', () => {
+            this.wavesurfer.backend.un('audioprocess', onProcess);
+            this.wavesurfer.backend.un('seek', onSeek);
+        });
+
+        /* Loop playback. */
+        this.on('out', () => {
+            if (this.loop) {
+                this.wavesurfer.play(this.start);
+            }
+        });
+    }
+    ///AIRFIX SPECIFIC CODE END
 
     /* Bind audio events. */
     bindInOut() {
