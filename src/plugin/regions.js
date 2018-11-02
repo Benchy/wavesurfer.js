@@ -146,8 +146,7 @@ class Region {
                 position: 'absolute',
                 left: '0px',
                 top: '0px',
-                width: '1%',
-                maxWidth: '4px',
+                width: '4px',
                 height: '100%'
             };
             this.style(handleLeft, css);
@@ -237,10 +236,20 @@ class Region {
     bindInOutAirFix() {
         this.firedIn = false;
         this.firedOut = false;
-        this.isLooping = false;
+        //use this flag to prevent reentrancy when having a region size close to 0
+        this.reentrancyGuard = false;
 
         const seekToStart = () => {
-            this.wavesurfer.seek(this.start);
+            if (!this.reentrancyGuard) return;
+            console.log('seektostart');
+
+            this.reentrancyGuard = false;
+            this.un('airfix-out', seekToStart);
+
+            const duration = this.wavesurfer.getDuration();
+            this.airfixSeeking = true;
+            this.wavesurfer.seekTo(this.start / duration);
+            this.airfixSeeking = false;
         };
 
         const onProcess = time => {
@@ -252,43 +261,48 @@ class Region {
             ) {
                 this.firedOut = true;
                 this.firedIn = false;
-                this.fireEvent('out');
+                console.log('out');
+                this.fireEvent('airfix-out');
+
                 this.wavesurfer.fireEvent('region-out', this);
             }
             if (!this.firedIn && this.start <= time && this.end > time) {
                 this.firedIn = true;
                 this.firedOut = false;
 
-                this.once('out', seekToStart);
+                if (!this.reentrancyGuard) {
+                    console.log('in');
+                    this.on('airfix-out', seekToStart);
+                    this.reentrancyGuard = true;
+                }
 
-                this.fireEvent('in');
                 this.wavesurfer.fireEvent('region-in', this);
             }
         };
 
         const onSeek = time => {
+            //ignore when this was triggered by the looping macanism. we only
+            //want to continue when the user seek himself
+            if (this.airfixSeeking) return;
+
             if (
-                this.start >= Math.round(time * 100) / 100 ||
-                this.end <= Math.round(time * 100) / 100
+                this.start >= time * this.wavesurfer.getDuration() ||
+                this.end <= time * this.wavesurfer.getDuration()
             ) {
                 //when seeking outside of the region. stop looping and unsubscribe to 'out' se we dont loop
-                this.un('out', seekToStart);
+                this.un('airfix-out', seekToStart);
+                this.reentrancyGuard = false;
+                this.firedIn = false;
+                this.firedOut = false;
             }
         };
 
         this.wavesurfer.backend.on('audioprocess', onProcess);
-        this.wavesurfer.backend.on('seek', onSeek);
+        this.wavesurfer.on('seek', onSeek);
 
         this.on('remove', () => {
             this.wavesurfer.backend.un('audioprocess', onProcess);
-            this.wavesurfer.backend.un('seek', onSeek);
-        });
-
-        /* Loop playback. */
-        this.on('out', () => {
-            if (this.loop) {
-                this.wavesurfer.play(this.start);
-            }
+            this.wavesurfer.un('seek', onSeek);
         });
     }
     ///AIRFIX SPECIFIC CODE END
