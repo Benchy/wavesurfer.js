@@ -157,6 +157,15 @@ class Region {
             });
         }
 
+        //AIRFIX SPECIFIC CODE START
+        const removeRegionHandle = regionEl.appendChild(
+            document.createElement('removeRegionHandle')
+        );
+
+        //see styles.css for style reference.
+        removeRegionHandle.className = 'wavesurfer-airfix-removeRegionHandle';
+        //AIRFIX SPECIFIC CODE END
+
         this.element = this.wrapper.appendChild(regionEl);
         this.updateRender();
         this.bindEvents(regionEl);
@@ -420,7 +429,15 @@ class Region {
                         } else {
                             resize = 'end';
                         }
-                    } else {
+                    }
+                    //AIRFIX SPECIFIC CODE START
+                    else if (
+                        e.target.tagName.toLowerCase() == 'removeregionhandle'
+                    ) {
+                        this.remove();
+                    }
+                    //AIRFIX SPECIFIC CODE END
+                    else {
                         drag = true;
                         resize = false;
                     }

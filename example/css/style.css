@@ -4,6 +4,23 @@ body {
     padding-bottom: 20px;
 }
 
+/* airfix specific code start
+THIS STYLE IS NOT SHIPPED WITH WAVESURFER. YOU NEED TO MAKE YOU OWN IN YOUR PROJECT
+*/
+.wavesurfer-airfix-removeRegionHandle {
+    position: absolute;
+    background-image: url("close-icon.png");
+    background-repeat:no-repeat;
+    background-size: 100% 100%;
+    cursor: pointer;
+    right: 0px;
+    top: 0px;
+    width: 16px;
+    height: 16px;
+    opacity: 0.3;
+}
+/* airfix specific code start */
+
 /* Everything but the jumbotron gets side spacing for mobile first views */
 .header,
 .marketing,
