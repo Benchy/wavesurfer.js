@@ -733,6 +733,9 @@ export default class RegionsPlugin {
                 });
             }
             if (this.params.dragSelection) {
+                // AIRFIX SPECIFIC CODE START
+                this.disableDragSelection();
+                // AIRFIX SPECIFIC CODE END
                 this.enableDragSelection(this.params);
             }
         };
