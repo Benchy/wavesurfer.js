@@ -1492,4 +1492,24 @@ export default class WaveSurfer extends util.Observer {
         this.isReady = false;
         this.arraybuffer = null;
     }
+
+    // Airfix SPECIFIC CODE STARTS : MultiBuffer support
+
+    // Load the specified buffer and fire 'secondeBufferReady' event
+    loadSecondBuffer(url) {
+        this.getArrayBuffer(url, data => this.loadDecodedSecondBuffer(data));
+    }
+
+    //crossfades the 2 buffers and swap de "secondBuffer" into the main buffer
+    swapBuffers(crossFadeTime) {
+        return false;
+    }
+
+    loadDecodedSecondBuffer(buffer) {
+        this.backend.load(buffer);
+        //this.drawBuffer();
+        this.fireEvent('secondeBufferReady');
+        //this.isReady = true;
+    }
+    // Airfix SPECIFIC CODE ENDS
 }

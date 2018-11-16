@@ -536,6 +536,29 @@ export default class WebAudio extends util.Observer {
         this.source.connect(this.analyser);
     }
 
+    // AIRFIX SPECIFIC CODE
+    loadSecondBuffer(buffer) {
+        this.startPosition = 0;
+        this.lastPlay = this.ac.currentTime;
+        //this.buffer = buffer;
+        this.createSourceForSecondBuffer();
+    }
+
+    /** @private */
+    createSourceForSecondBuffer() {
+        // this.disconnectSource();
+        // this.source = this.ac.createBufferSource();
+        // // adjust for old browsers
+        // this.source.start = this.source.start || this.source.noteGrainOn;
+        // this.source.stop = this.source.stop || this.source.noteOff;
+        // this.source.playbackRate.setValueAtTime(
+        //     this.playbackRate,
+        //     this.ac.currentTime
+        // );
+        // this.source.buffer = this.buffer;
+        // this.source.connect(this.analyser);
+    }
+
     /**
      * Used by `wavesurfer.isPlaying()` and `wavesurfer.playPause()`
      *
