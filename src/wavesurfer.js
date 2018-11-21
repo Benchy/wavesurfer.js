@@ -765,6 +765,8 @@ export default class WaveSurfer extends util.Observer {
      * wavesurfer.seekTo(0.5);
      */
     seekTo(progress) {
+        if (!this.backend.canInteract()) return;
+
         // return an error if progress is not a number between 0 and 1
         if (
             typeof progress !== 'number' ||
@@ -1496,20 +1498,26 @@ export default class WaveSurfer extends util.Observer {
     // Airfix SPECIFIC CODE STARTS : MultiBuffer support
 
     // Load the specified buffer and fire 'secondeBufferReady' event
-    loadSecondBuffer(url) {
-        this.getArrayBuffer(url, data => this.loadDecodedSecondBuffer(data));
+    loadTempBuffer(url) {
+        this.getArrayBuffer(url, data => this.loadTempArrayBuffer(data));
     }
 
-    //crossfades the 2 buffers and swap de "secondBuffer" into the main buffer
-    swapBuffers(crossFadeTime) {
-        return false;
+    loadTempArrayBuffer(arraybuffer) {
+        this.decodeArrayBuffer(arraybuffer, data => {
+            if (!this.isDestroyed) {
+                this.loadDecodedTempBuffer(data);
+            }
+        });
     }
 
-    loadDecodedSecondBuffer(buffer) {
-        this.backend.load(buffer);
-        //this.drawBuffer();
+    loadDecodedTempBuffer(buffer) {
+        this.backend.loadTempBuffer(buffer);
         this.fireEvent('secondeBufferReady');
-        //this.isReady = true;
+    }
+
+    //crossfades the 2 buffers and swap de "TempBuffer" into the main buffer
+    swapBuffers(crossFadeTime) {
+        this.backend.crossFadeBuffers(crossFadeTime);
     }
     // Airfix SPECIFIC CODE ENDS
 }

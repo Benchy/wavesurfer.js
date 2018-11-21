@@ -1,5 +1,5 @@
 var wavesurfer = window.wavesurfer;
-
+var currentSong = 1;
 var GLOBAL_ACTIONS = {
     play: function() {
         wavesurfer.playPause();
@@ -11,6 +11,20 @@ var GLOBAL_ACTIONS = {
 
     forth: function() {
         wavesurfer.skipForward();
+    },
+
+    crossfade: function() {
+        if (currentSong == 1) {
+            wavesurfer.loadTempBuffer('../media/song2.mp3');
+            currentSong = 2;
+        } else {
+            wavesurfer.loadTempBuffer('../media/song1.mp3');
+            currentSong = 1;
+        }
+
+        wavesurfer.once('secondeBufferReady', () =>
+            wavesurfer.swapBuffers(0.5)
+        );
     },
 
     'toggle-mute': function() {

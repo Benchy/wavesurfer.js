@@ -144,6 +144,14 @@ export default class WebAudio extends util.Observer {
         this.state = null;
         /** @private */
         this.explicitDuration = null;
+
+        // AIRFIX SPECIFIC CODE
+        /** @private */
+        this.tempBuffer = null;
+        this.tempAnalyser = null;
+        this.isCrossfading = false;
+        this.tempSource = null;
+        this.crossFadeAudioProcessCallback = null;
     }
 
     /**
@@ -484,6 +492,14 @@ export default class WebAudio extends util.Observer {
         this.scriptNode.disconnect();
         this.analyser.disconnect();
 
+        // AIRFIX SPECIFIC CODE
+        this.disconnectAllTempNodes();
+        this.tempBuffer = null;
+        this.tempSource = null;
+        this.tempGainNode = null;
+        this.tempAnalyser = null;
+        this.crossFadeAudioProcessCallback = null;
+
         // close the audioContext if closeAudioContext option is set to true
         if (this.params.closeAudioContext) {
             // check if browser supports AudioContext.close()
@@ -534,29 +550,6 @@ export default class WebAudio extends util.Observer {
         );
         this.source.buffer = this.buffer;
         this.source.connect(this.analyser);
-    }
-
-    // AIRFIX SPECIFIC CODE
-    loadSecondBuffer(buffer) {
-        this.startPosition = 0;
-        this.lastPlay = this.ac.currentTime;
-        //this.buffer = buffer;
-        this.createSourceForSecondBuffer();
-    }
-
-    /** @private */
-    createSourceForSecondBuffer() {
-        // this.disconnectSource();
-        // this.source = this.ac.createBufferSource();
-        // // adjust for old browsers
-        // this.source.start = this.source.start || this.source.noteGrainOn;
-        // this.source.stop = this.source.stop || this.source.noteOff;
-        // this.source.playbackRate.setValueAtTime(
-        //     this.playbackRate,
-        //     this.ac.currentTime
-        // );
-        // this.source.buffer = this.buffer;
-        // this.source.connect(this.analyser);
     }
 
     /**
@@ -710,4 +703,151 @@ export default class WebAudio extends util.Observer {
             this.play();
         }
     }
+
+    // AIRFIX SPECIFIC CODE STARTS
+    /**
+     * Plays the loaded audio region.
+     *
+     * @param {number} start Start offset in seconds, relative to the beginning
+     * of a clip.
+     * @param {number} end When to stop relative to the beginning of a clip.
+     */
+    playTempBuffer(start) {
+        if (!this.tempBuffer) {
+            return;
+        }
+
+        // need to re-create source on each playback
+        this.createSourceForTempBuffer();
+
+        this.tempSource.start(0, start);
+    }
+
+    crossFadeBuffers(crossfadeTime) {
+        this.isCrossfading = true;
+        this.playTempBuffer(this.getCurrentTime());
+
+        let endTime = this.getCurrentTime() + crossfadeTime;
+        let preCrossFadeVolume = this.getVolume();
+
+        this.crossFadeAudioProcessCallback = time =>
+            this.crossFadeAudioProcess(
+                time,
+                endTime,
+                crossfadeTime,
+                preCrossFadeVolume,
+                this
+            );
+        this.on('audioprocess', this.crossFadeAudioProcessCallback);
+    }
+
+    crossFadeAudioProcess(
+        time,
+        endTime,
+        crossfadeTime,
+        preCrossFadeVolume,
+        self
+    ) {
+        if (time >= endTime) {
+            // unsub from audioProcess and retarget all "temp" nodes and variable to the main one and
+            // delete the old "main" branch and variable
+            self.un('audioprocess', self.crossFadeAudioProcessCallback);
+            self.source.stop(0);
+
+            self.buffer = self.tempBuffer;
+            self.tempBuffer = null;
+
+            self.source = self.tempSource;
+            self.tempSource = null;
+
+            self.analyser = self.tempAnalyser;
+            self.tempAnalyser = null;
+
+            self.gainNode = self.tempGainNode;
+            self.tempGainNode = null;
+
+            self.isCrossfading = false;
+            return;
+        }
+
+        let start = endTime - crossfadeTime;
+
+        //linear crossfade
+        let mainSourceVolume =
+            ((endTime - time) / (endTime - start)) * preCrossFadeVolume;
+        let tempSourceVolume =
+            ((time - start) / (endTime - start)) * preCrossFadeVolume;
+
+        self.gainNode.gain.setValueAtTime(
+            mainSourceVolume,
+            self.ac.currentTime
+        );
+        self.tempGainNode.gain.setValueAtTime(
+            tempSourceVolume,
+            self.ac.currentTime
+        );
+    }
+
+    canInteract() {
+        return !this.isCrossfading;
+    }
+
+    loadTempBuffer(buffer) {
+        // remove old nodes
+        this.disconnectAllTempNodes();
+
+        //create new temp branch
+        this.createTempVolumeNode();
+        this.createTempAnalyserNode();
+
+        this.tempBuffer = buffer;
+
+        this.createSourceForTempBuffer();
+    }
+
+    disconnectAllTempNodes() {
+        if (this.tempGainNode) this.tempGainNode.disconnect();
+
+        if (this.tempAnalyser) this.tempAnalyser.disconnect();
+
+        if (this.tempSource) this.tempSource.disconnect();
+    }
+
+    disconnectTempSource() {
+        if (this.tempSource) {
+            this.tempSource.disconnect();
+        }
+    }
+
+    createTempVolumeNode() {
+        // Create gain node using the AudioContext
+        if (this.ac.createGain) {
+            this.tempGainNode = this.ac.createGain();
+        } else {
+            this.tempGainNode = this.ac.createGainNode();
+        }
+        // Add the gain node to the graph
+        this.tempGainNode.connect(this.ac.destination);
+    }
+
+    createTempAnalyserNode() {
+        this.tempAnalyser = this.ac.createAnalyser();
+        this.tempAnalyser.connect(this.tempGainNode);
+    }
+
+    createSourceForTempBuffer() {
+        this.disconnectTempSource();
+        this.tempSource = this.ac.createBufferSource();
+
+        // adjust for old browsers
+        // this.tempSource.start = this.source.start || this.source.noteGrainOn;
+        // this.tempSource.stop = this.source.stop || this.source.noteOff;
+        this.tempSource.playbackRate.setValueAtTime(
+            this.playbackRate,
+            this.ac.currentTime
+        );
+        this.tempSource.buffer = this.tempBuffer;
+        this.tempSource.connect(this.tempAnalyser);
+    }
+    // AIRFIX SPECIFIC CODE ENDS
 }
