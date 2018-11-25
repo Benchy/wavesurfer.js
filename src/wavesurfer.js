@@ -606,6 +606,10 @@ export default class WaveSurfer extends util.Observer {
         this.backend.on('audioprocess', time => {
             this.drawer.progress(this.backend.getPlayedPercents());
             this.fireEvent('audioprocess', time);
+            if (this.backend.isCrossfading) {
+                // redraw the buffer when we are crossfading to play the fadding anim
+                this.drawBuffer();
+            }
         });
     }
 
@@ -1517,6 +1521,8 @@ export default class WaveSurfer extends util.Observer {
 
     //crossfades the 2 buffers and swap de "TempBuffer" into the main buffer
     swapBuffers(crossFadeTime) {
+        if (!this.isPlaying()) return;
+
         this.backend.crossFadeBuffers(crossFadeTime);
     }
     // Airfix SPECIFIC CODE ENDS

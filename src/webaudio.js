@@ -150,6 +150,7 @@ export default class WebAudio extends util.Observer {
         this.tempBuffer = null;
         this.tempAnalyser = null;
         this.isCrossfading = false;
+        this.crossFadeProgress = 0;
         this.tempSource = null;
         this.crossFadeAudioProcessCallback = null;
     }
@@ -424,17 +425,32 @@ export default class WebAudio extends util.Observer {
         for (c = 0; c < channels; c++) {
             const peaks = this.splitPeaks[c];
             const chan = this.buffer.getChannelData(c);
+            let chanTemp = undefined;
+            if (this.isCrossfading) {
+                chanTemp = this.tempBuffer.getChannelData(c);
+            }
+
             let i;
 
             for (i = first; i <= last; i++) {
+                // get start and end of current sample
+                // the sample is a subdivision of the buffer's data
                 const start = ~~(i * sampleSize);
                 const end = ~~(start + sampleSize);
                 let min = 0;
                 let max = 0;
                 let j;
 
+                // get min and max value for current sample
                 for (j = start; j < end; j += sampleStep) {
-                    const value = chan[j];
+                    let value = chan[j];
+
+                    if (this.isCrossfading) {
+                        const tempValue = chanTemp[j];
+                        value =
+                            value +
+                            (tempValue - value) * this.crossFadeProgress;
+                    }
 
                     if (value > max) {
                         max = value;
@@ -445,9 +461,11 @@ export default class WebAudio extends util.Observer {
                     }
                 }
 
+                // peaks are stored in a single dimension array, but in pairs [max, min]
                 peaks[2 * i] = max;
                 peaks[2 * i + 1] = min;
 
+                // put the biggest value in mergedpeaks
                 if (c == 0 || max > this.mergedPeaks[2 * i]) {
                     this.mergedPeaks[2 * i] = max;
                 }
@@ -725,6 +743,7 @@ export default class WebAudio extends util.Observer {
 
     crossFadeBuffers(crossfadeTime) {
         this.isCrossfading = true;
+        this.crossFadeProgress = 0;
         this.playTempBuffer(this.getCurrentTime());
 
         let endTime = this.getCurrentTime() + crossfadeTime;
@@ -773,10 +792,11 @@ export default class WebAudio extends util.Observer {
         let start = endTime - crossfadeTime;
 
         //linear crossfade
+        self.crossFadeProgress = (time - start) / (endTime - start);
+
         let mainSourceVolume =
-            ((endTime - time) / (endTime - start)) * preCrossFadeVolume;
-        let tempSourceVolume =
-            ((time - start) / (endTime - start)) * preCrossFadeVolume;
+            (1 - self.crossFadeProgress) * preCrossFadeVolume;
+        let tempSourceVolume = self.crossFadeProgress * preCrossFadeVolume;
 
         self.gainNode.gain.setValueAtTime(
             mainSourceVolume,
