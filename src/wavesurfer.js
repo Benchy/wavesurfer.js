@@ -1496,31 +1496,52 @@ export default class WaveSurfer extends util.Observer {
         this.drawer.destroy();
         this.isDestroyed = true;
         this.isReady = false;
-        this.arraybuffer = null;
+        this.arraybuffer = undefined;
     }
 
     // Airfix SPECIFIC CODE STARTS : MultiBuffer support
+    crossfade(url, crossFadeTime) {
+        if (this.crossFadingRequested) {
+            this.nextUrl = url;
+            this.backend.once('crossFadeEnd', () =>
+                this.crossfade(this.nextUrl, crossFadeTime)
+            );
+            return;
+        } else {
+            this.crossFadingRequested = true;
+            this._loadTempBuffer(url);
+        }
 
-    // Load the specified buffer and fire 'secondeBufferReady' event
-    loadTempBuffer(url) {
-        this.getArrayBuffer(url, data => this.loadTempArrayBuffer(data));
+        this.once('secondeBufferReady', () => {
+            this._swapBuffers(crossFadeTime);
+        });
+
+        this.backend.once(
+            'crossFadeEnd',
+            () => (this.crossFadingRequested = false)
+        );
     }
 
-    loadTempArrayBuffer(arraybuffer) {
+    // Load the specified buffer and fire 'secondeBufferReady' event
+    _loadTempBuffer(url) {
+        this.getArrayBuffer(url, data => this._loadTempArrayBuffer(data));
+    }
+
+    _loadTempArrayBuffer(arraybuffer) {
         this.decodeArrayBuffer(arraybuffer, data => {
             if (!this.isDestroyed) {
-                this.loadDecodedTempBuffer(data);
+                this._loadDecodedTempBuffer(data);
             }
         });
     }
 
-    loadDecodedTempBuffer(buffer) {
+    _loadDecodedTempBuffer(buffer) {
         this.backend.loadTempBuffer(buffer);
         this.fireEvent('secondeBufferReady');
     }
 
     //crossfades the 2 buffers and swap de "TempBuffer" into the main buffer
-    swapBuffers(crossFadeTime) {
+    _swapBuffers(crossFadeTime) {
         if (!this.isPlaying()) return;
 
         this.backend.crossFadeBuffers(crossFadeTime);

@@ -421,12 +421,13 @@ export default class WebAudio extends util.Observer {
         const sampleStep = ~~(sampleSize / 10) || 1;
         const channels = this.buffer.numberOfChannels;
         let c;
+        let crossFadeInProgress = this.isCrossfading && this.tempBuffer;
 
         for (c = 0; c < channels; c++) {
             const peaks = this.splitPeaks[c];
             const chan = this.buffer.getChannelData(c);
             let chanTemp = undefined;
-            if (this.isCrossfading) {
+            if (crossFadeInProgress) {
                 chanTemp = this.tempBuffer.getChannelData(c);
             }
 
@@ -445,7 +446,7 @@ export default class WebAudio extends util.Observer {
                 for (j = start; j < end; j += sampleStep) {
                     let value = chan[j];
 
-                    if (this.isCrossfading) {
+                    if (crossFadeInProgress) {
                         const tempValue = chanTemp[j];
                         value =
                             value +
@@ -748,14 +749,15 @@ export default class WebAudio extends util.Observer {
 
         let endTime = this.getCurrentTime() + crossfadeTime;
         let preCrossFadeVolume = this.getVolume();
+        const self = this;
 
         this.crossFadeAudioProcessCallback = time =>
-            this.crossFadeAudioProcess(
+            self.crossFadeAudioProcess(
                 time,
                 endTime,
                 crossfadeTime,
                 preCrossFadeVolume,
-                this
+                self
             );
         this.on('audioprocess', this.crossFadeAudioProcessCallback);
     }
@@ -786,6 +788,7 @@ export default class WebAudio extends util.Observer {
             self.tempGainNode = null;
 
             self.isCrossfading = false;
+            this.fireEvent('crossFadeEnd');
             return;
         }
 

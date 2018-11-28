@@ -15,16 +15,12 @@ var GLOBAL_ACTIONS = {
 
     crossfade: function() {
         if (currentSong == 1) {
-            wavesurfer.loadTempBuffer('../media/song2.mp3');
+            wavesurfer.crossfade('../media/song2.mp3', 0.5);
             currentSong = 2;
         } else {
-            wavesurfer.loadTempBuffer('../media/song1.mp3');
+            wavesurfer.crossfade('../media/song1.mp3', 0.5);
             currentSong = 1;
         }
-
-        wavesurfer.once('secondeBufferReady', () =>
-            wavesurfer.swapBuffers(0.5)
-        );
     },
 
     'toggle-mute': function() {
