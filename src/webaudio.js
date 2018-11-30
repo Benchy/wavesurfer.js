@@ -849,6 +849,9 @@ export default class WebAudio extends util.Observer {
         } else {
             this.tempGainNode = this.ac.createGainNode();
         }
+
+        this.tempGainNode.gain.setValueAtTime(0, this.ac.currentTime);
+
         // Add the gain node to the graph
         this.tempGainNode.connect(this.ac.destination);
     }

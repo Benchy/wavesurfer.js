@@ -3,6 +3,7 @@ var currentSong = 1;
 var GLOBAL_ACTIONS = {
     play: function() {
         wavesurfer.playPause();
+        wavesurfer.setVolume(0.5);
     },
 
     back: function() {
