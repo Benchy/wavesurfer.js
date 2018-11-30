@@ -16,10 +16,10 @@ var GLOBAL_ACTIONS = {
 
     crossfade: function() {
         if (currentSong == 1) {
-            wavesurfer.crossfade('../media/song2.mp3', 0.5);
+            wavesurfer.crossfade('../media/song2.mp3', 1.5);
             currentSong = 2;
         } else {
-            wavesurfer.crossfade('../media/song1.mp3', 0.5);
+            wavesurfer.crossfade('../media/song1.mp3', 1.5);
             currentSong = 1;
         }
     },

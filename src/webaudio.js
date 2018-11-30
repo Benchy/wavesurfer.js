@@ -655,6 +655,9 @@ export default class WebAudio extends util.Observer {
 
         // need to re-create source on each playback
         this.createSource();
+        if (this.isCrossfading) {
+            this.createSourceForTempBuffer();
+        }
 
         const adjustedTime = this.seekTo(start, end);
 
@@ -664,6 +667,9 @@ export default class WebAudio extends util.Observer {
         this.scheduledPause = end;
 
         this.source.start(0, start, end - start);
+        if (this.isCrossfading) {
+            this.tempSource.start(0, start, end - start);
+        }
 
         if (this.ac.state == 'suspended') {
             this.ac.resume && this.ac.resume();
@@ -682,6 +688,9 @@ export default class WebAudio extends util.Observer {
 
         this.startPosition += this.getPlayedTime();
         this.source && this.source.stop(0);
+        if (this.isCrossfading) {
+            this.tempSource.stop(0);
+        }
 
         this.setState(PAUSED);
 
@@ -745,16 +754,15 @@ export default class WebAudio extends util.Observer {
     crossFadeBuffers(crossfadeTime) {
         this.isCrossfading = true;
         this.crossFadeProgress = 0;
+        this.crossFadePreviousTick = this.getCurrentTime();
         this.playTempBuffer(this.getCurrentTime());
 
-        let endTime = this.getCurrentTime() + crossfadeTime;
         let preCrossFadeVolume = this.getVolume();
         const self = this;
 
         this.crossFadeAudioProcessCallback = time =>
             self.crossFadeAudioProcess(
                 time,
-                endTime,
                 crossfadeTime,
                 preCrossFadeVolume,
                 self
@@ -762,14 +770,8 @@ export default class WebAudio extends util.Observer {
         this.on('audioprocess', this.crossFadeAudioProcessCallback);
     }
 
-    crossFadeAudioProcess(
-        time,
-        endTime,
-        crossfadeTime,
-        preCrossFadeVolume,
-        self
-    ) {
-        if (time >= endTime) {
+    crossFadeAudioProcess(time, crossfadeTime, preCrossFadeVolume, self) {
+        if (self.crossFadeProgress >= 1) {
             // unsub from audioProcess and retarget all "temp" nodes and variable to the main one and
             // delete the old "main" branch and variable
             self.un('audioprocess', self.crossFadeAudioProcessCallback);
@@ -792,10 +794,13 @@ export default class WebAudio extends util.Observer {
             return;
         }
 
-        let start = endTime - crossfadeTime;
+        if (time < self.crossFadePreviousTick) {
+            self.crossFadePreviousTick = time;
+            return;
+        }
 
-        //linear crossfade
-        self.crossFadeProgress = (time - start) / (endTime - start);
+        self.crossFadeProgress +=
+            (time - self.crossFadePreviousTick) / crossfadeTime;
 
         let mainSourceVolume =
             (1 - self.crossFadeProgress) * preCrossFadeVolume;
@@ -809,10 +814,8 @@ export default class WebAudio extends util.Observer {
             tempSourceVolume,
             self.ac.currentTime
         );
-    }
 
-    canInteract() {
-        return !this.isCrossfading;
+        self.crossFadePreviousTick = time;
     }
 
     loadTempBuffer(buffer) {
