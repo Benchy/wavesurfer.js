@@ -223,7 +223,8 @@ export default class MicrophonePlugin {
                     this.browser.version >= 45) ||
                 (this.browser.browser === 'firefox' &&
                     this.browser.version >= 44) ||
-                this.browser.browser === 'edge'
+                this.browser.browser === 'edge' ||
+                this.browser.browser === 'safari'
             ) {
                 if (this.stream.getTracks) {
                     // note that this should not be a call
@@ -287,6 +288,8 @@ export default class MicrophonePlugin {
 
     /**
      * Redraw the waveform.
+     *
+     * @param {object} event Audioprocess event
      */
     reloadBuffer(event) {
         if (!this.paused) {
@@ -335,6 +338,8 @@ export default class MicrophonePlugin {
 
     /**
      * Device error callback.
+     *
+     * @param {string} code Error message
      */
     deviceError(code) {
         // notify listeners
@@ -371,35 +376,31 @@ export default class MicrophonePlugin {
             return result;
         }
 
-        // Firefox.
         if (navigator.mozGetUserMedia) {
+            // Firefox
             result.browser = 'firefox';
             result.version = this.extractVersion(
                 navigator.userAgent,
-                /Firefox\/([0-9]+)\./,
+                /Firefox\/(\d+)\./,
                 1
             );
             result.minVersion = 31;
             return result;
-        }
-
-        // Chrome/Chromium/Webview.
-        if (navigator.webkitGetUserMedia && window.webkitRTCPeerConnection) {
+        } else if (navigator.webkitGetUserMedia) {
+            // Chrome/Chromium/Webview/Opera
             result.browser = 'chrome';
             result.version = this.extractVersion(
                 navigator.userAgent,
-                /Chrom(e|ium)\/([0-9]+)\./,
+                /Chrom(e|ium)\/(\d+)\./,
                 2
             );
             result.minVersion = 38;
             return result;
-        }
-
-        // Edge.
-        if (
+        } else if (
             navigator.mediaDevices &&
             navigator.userAgent.match(/Edge\/(\d+).(\d+)$/)
         ) {
+            // Edge
             result.browser = 'edge';
             result.version = this.extractVersion(
                 navigator.userAgent,
@@ -407,6 +408,19 @@ export default class MicrophonePlugin {
                 2
             );
             result.minVersion = 10547;
+            return result;
+        } else if (
+            window.RTCPeerConnection &&
+            navigator.userAgent.match(/AppleWebKit\/(\d+)\./)
+        ) {
+            // Safari
+            result.browser = 'safari';
+            result.minVersion = 11;
+            result.version = this.extractVersion(
+                navigator.userAgent,
+                /AppleWebKit\/(\d+)\./,
+                1
+            );
             return result;
         }
 
