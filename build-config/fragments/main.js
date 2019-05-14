@@ -5,11 +5,13 @@ const rootDir = path.resolve(__dirname, '..', '..');
 
 module.exports = {
     entry: {
-        wavesurfer: path.join(rootDir, 'src', 'wavesurfer.js')
+        wavesurfer: path.join(rootDir, 'src', 'index.js')
     },
     output: {
         path: path.join(rootDir, 'dist'),
-        filename: '[name].js',
-        library: 'WaveSurfer'
+        filename: 'index.js',
+        library: 'WaveSurfer',
+        libraryTarget: 'umd', // Or 'var' by default,
+        umdNamedDefine: true,
     }
 };

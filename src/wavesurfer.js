@@ -1497,7 +1497,7 @@ export default class WaveSurfer extends util.Observer {
         this.arraybuffer = undefined;
     }
 
-    // Airfix SPECIFIC CODE STARTS : MultiBuffer support
+    // Airfix SPECIFIC CODE STARTS : MultiBuffers support
     crossfade(url, crossFadeTime) {
         if (this.crossFadingRequested) {
             this.nextUrl = url;
@@ -1514,10 +1514,10 @@ export default class WaveSurfer extends util.Observer {
             this._swapBuffers(crossFadeTime);
         });
 
-        this.backend.once(
-            'crossFadeEnd',
-            () => (this.crossFadingRequested = false)
-        );
+        this.backend.once('crossFadeEnd', () => {
+            this.crossFadingRequested = false;
+            this.fireEvent('ready');
+        });
     }
 
     // Load the specified buffer and fire 'secondeBufferReady' event
@@ -1540,8 +1540,6 @@ export default class WaveSurfer extends util.Observer {
 
     //crossfades the 2 buffers and swap de "TempBuffer" into the main buffer
     _swapBuffers(crossFadeTime) {
-        if (!this.isPlaying()) return;
-
         this.backend.crossFadeBuffers(crossFadeTime);
     }
     // Airfix SPECIFIC CODE ENDS

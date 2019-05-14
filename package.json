@@ -1,8 +1,9 @@
 {
-  "name": "wavesurfer.js",
+  "name": "wavesurfer-js",
   "version": "2.1.0",
   "description": "Interactive navigable audio visualization using Web Audio and Canvas",
   "main": "dist/wavesurfer.min.js",
+  "module": "dist/index.js",
   "directories": {
     "example": "example"
   },

@@ -748,7 +748,10 @@ export default class WebAudio extends util.Observer {
         // need to re-create source on each playback
         this.createSourceForTempBuffer();
 
+        // seek and start
         this.tempSource.start(0, start);
+
+        if (this.isPaused()) this.tempSource.stop();
     }
 
     crossFadeBuffers(crossfadeTime) {
@@ -799,8 +802,9 @@ export default class WebAudio extends util.Observer {
             return;
         }
 
-        self.crossFadeProgress +=
-            (time - self.crossFadePreviousTick) / crossfadeTime;
+        self.crossFadeProgress += (time - self.crossFadePreviousTick) / crossfadeTime;
+        if (self.crossFadeProgress > 1.0)
+            self.crossFadeProgress = 1.0;
 
         let mainSourceVolume =
             (1 - self.crossFadeProgress) * preCrossFadeVolume;
